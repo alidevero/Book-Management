@@ -52,3 +52,11 @@ class GetAllCommentSerializer(serializers.Serializer):
     book = serializers.CharField()
     user = serializers.CharField()
     comment = serializers.CharField()
+
+
+
+class ReplyToCommentSerializer(serializers.ModelSerializer):
+     
+     class Meta:
+          model = CommentModel
+          fields = ['comment','book','parent','user']

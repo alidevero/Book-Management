@@ -1,10 +1,14 @@
+from django.http import JsonResponse
 import jwt
 from django.utils.timezone import now
 from django.conf import settings
 from Auth.models import User  # Import your custom User model
 from dotenv import load_dotenv
 import os
+from django.utils.deprecation import MiddlewareMixin
 load_dotenv()
+
+
 
 
 class LastLoginMiddleware:
@@ -42,3 +46,6 @@ class LastLoginMiddleware:
 
         response = self.get_response(request)
         return response
+    
+
+

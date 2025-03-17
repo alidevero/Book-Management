@@ -41,9 +41,13 @@ INSTALLED_APPS = [
     'Auth',
     'Books',
     'Social',
+    'Friends',
+    'channels'
 ]
 
 MIDDLEWARE = [
+    
+    'Auth.middleware.LastLoginMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -51,7 +55,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'Auth.middleware.LastLoginMiddleware',
+    
+    
 ]
 
 ROOT_URLCONF = 'bookManagement.urls'
@@ -72,7 +77,17 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'bookManagement.wsgi.application'
+# WSGI_APPLICATION = 'bookManagement.wsgi.application'
+
+ASGI_APPLICATION = 'bookManagement.asgi.application'
+WEBHOOK_URL = "https://your-external-service.com/webhook"
+
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",  
+    },
+}
 
 
 # Database
@@ -165,4 +180,11 @@ import os
 
 MEDIA_URL = "/media/"  #To upload pdf
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'Auth.authentication.JWTAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+}
 

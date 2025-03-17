@@ -5,7 +5,9 @@ from .serializers import *
 from .utils import send_otp_via_mail , generate_jwt_token
 import random
 from django.core.cache import cache
+from Auth.authentication import *
 from django.contrib.auth.hashers import make_password
+from rest_framework import status, permissions
 # Create your views here.
 
 class SignupUser(APIView):
@@ -44,6 +46,8 @@ class SignupUser(APIView):
 
 
 class UserLogin(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
     def post(self , request):
         try:
             data = request.data

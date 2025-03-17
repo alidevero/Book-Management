@@ -46,7 +46,6 @@ class GetAllLikeView(APIView):
 class CommentView(APIView):
 
     def post(self,request):
-
         try:
             auth_header = request.headers.get('Authorization')
             if auth_header and auth_header.startswith('Bearer '):
@@ -90,3 +89,32 @@ class GetAllComments(APIView):
         except Exception as e:
             return Response({"erro":str(e)})
 
+
+
+class ReplyToCommentView(APIView):
+
+    def post(self,request):
+        try:
+            auth_header = request.headers.get('Authorization')
+            if auth_header and auth_header.startswith('Bearer '):
+                token = auth_header.split(' ')[1]
+                secret_key = os.environ.get('JWT_SECRET_KEY')
+                payload = jwt.decode(token , secret_key , algorithms=['HS256'])
+                email = payload.get('email')
+                user = User.objects.filter(email=email).first()
+                book_id = request.data.get('book_id')
+                comment = request.data.get('comment')
+                parent = request.data.get('parent')
+                book= BookModel.objects.filter(id= book_id).first()
+                parent = CommentModel.objects.filter(comment_id= parent).first()
+                serializer = ReplyToCommentSerializer(data = {"user":user.id,"book":book.id,"parent":parent.comment_id,"comment":comment})
+                if serializer.is_valid():
+                    serializer.save(user=user, book=book,comment=comment)
+                    return Response({"message":"Replied Successfully","data":serializer.data})
+                return Response({"error":serializer.errors})
+            
+            return Response({"message":"Invalid or expired jwt"})
+            
+
+        except Exception as e:
+            return Response({"message":str(e)})

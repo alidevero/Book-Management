@@ -25,4 +25,5 @@ urlpatterns = [
     path('api/v0/Auth/', include('Auth.urls')),
     path('api/v0/books/', include('Books.urls')),
     path('api/v0/Social/', include('Social.urls')),
+    path('api/v0/Friends/', include('Friends.urls')),
 ]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
