@@ -29,11 +29,6 @@ class SignupUser(APIView):
                     "is_verified": is_verified
                 }
                 email_sent = send_otp_via_mail(email, otp)
-                if not email_sent:
-                    return Response(
-                        {"error": "Failed to send OTP email"}, 
-                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                    )
                 
                 cache_key = f"email_otp{email}"
                 cache.set(cache_key, payload, timeout=600)  # save otp in cache for 10 mins
@@ -50,33 +45,6 @@ class SignupUser(APIView):
                 {"error": "Something went wrong", "details": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
-
-class UserLogin(APIView):
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [permissions.IsAuthenticated]
-    def post(self, request):
-        try:
-            data = request.data
-            serializer = UserLoginSerializer(data=data)
-            if serializer.is_valid():
-                email = serializer.validated_data.get("email")
-                token = generate_jwt_token(email)
-                return Response({
-                    "success": True,
-                    "message": "Logged in successfully",
-                    "token": token
-                }, status=status.HTTP_200_OK)
-            return Response({
-                "error": "Invalid login data",
-                "details": serializer.errors
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
-        except Exception as e:
-            return Response({
-                "error": "Login failed",
-                "details": str(e)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class VerifyOTP(APIView):
@@ -138,3 +106,48 @@ class VerifyOTP(APIView):
                 "error": "OTP verification failed",
                 "details": str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class UserLogin(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+    def post(self , request):
+        try:
+            data = request.data
+            serializer = UserLoginSerializer(data= data)
+            if serializer.is_valid():
+                email = serializer.validated_data.get("email")
+                token = generate_jwt_token(email)
+                return Response({
+                    "success":True,
+                    "message":"LogedIn successfully",
+                    "token":token
+                })
+            return Response({
+                "message":"Something went wrong",
+                "error" : serializer.errors
+            })
+        
+        except Exception as e:
+            return Response({
+                "message":"Error in Login",
+                "error":str(e)
+            })
+
+
+class UserProfileView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self , request):
+        try:
+            user = request.user
+            serializer = UserProfileSerializer(user)
+            return Response({"message":"This is you profile","data":serializer.data},status=status.HTTP_200_OK)          
+        except Exception as e:
+            return Response({
+                "error": "Could not get the profile failed",
+                "details": str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+    
+

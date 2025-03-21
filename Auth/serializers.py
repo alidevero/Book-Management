@@ -54,10 +54,15 @@ class UserLoginSerializer(serializers.Serializer):
         return data
 
 
-
-
 class VerifyOtpSerializer(serializers.Serializer):
     email = serializers.EmailField()
     otp = serializers.IntegerField()
+
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ('username','email')
+        read_only_fields = ['email']
 
         
