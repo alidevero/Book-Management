@@ -28,48 +28,55 @@ class SignupUser(APIView):
                     "otp" : otp,
                     "is_verified": is_verified
                 }
-                send_otp_via_mail(email , otp)
+                email_sent = send_otp_via_mail(email, otp)
+                if not email_sent:
+                    return Response(
+                        {"error": "Failed to send OTP email"}, 
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    )
+                
                 cache_key = f"email_otp{email}"
-                cache.set(cache_key,payload,timeout=600)#save otp in cache for 10 mints
-                return Response({"message" : "Check your email you have recived OTP","data":serializer.data})
-            return Response(serializer.errors, status=400)
-        except Exception as e:
-            print(e)
+                cache.set(cache_key, payload, timeout=600)  # save otp in cache for 10 mins
+                return Response(
+                    {"message": "Check your email you have received OTP", "data": serializer.data},
+                    status=status.HTTP_200_OK
+                )
             return Response(
-                {"message": "Something went wrong", "error": str(e)},
-                status=500
+                {"error": "Validation failed", "details": serializer.errors}, 
+                status=status.HTTP_400_BAD_REQUEST
             )
-            
-        
         except Exception as e:
-            print(e)
+            return Response(
+                {"error": "Something went wrong", "details": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class UserLogin(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [permissions.IsAuthenticated]
-    def post(self , request):
+    def post(self, request):
         try:
             data = request.data
-            serializer = UserLoginSerializer(data= data)
+            serializer = UserLoginSerializer(data=data)
             if serializer.is_valid():
                 email = serializer.validated_data.get("email")
                 token = generate_jwt_token(email)
                 return Response({
-                    "success":True,
-                    "message":"LogedIn successfully",
-                    "token":token
-                })
+                    "success": True,
+                    "message": "Logged in successfully",
+                    "token": token
+                }, status=status.HTTP_200_OK)
             return Response({
-                "message":"Something went wrong",
-                "error" : serializer.errors
-            })
+                "error": "Invalid login data",
+                "details": serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
         
         except Exception as e:
             return Response({
-                "message":"Error in Login",
-                "error":str(e)
-            })
+                "error": "Login failed",
+                "details": str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class VerifyOTP(APIView):
@@ -84,45 +91,50 @@ class VerifyOTP(APIView):
                 payload = cache.get(cache_key)
                 if not payload:
                     return Response({
-                        "message" :"Not found"
-                    })
+                        "error": "OTP expired or not found"
+                    }, status=status.HTTP_404_NOT_FOUND)
                 
                 otp_sent_by_us = payload["otp"]
 
                 if otp_sent_by_us != otp_submited_by_user:
                     return Response({
-                        "message" : "wrong otp"
-                    })
-                payload["is_verified"] =True 
+                        "error": "Incorrect OTP"
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                
+                payload["is_verified"] = True 
                  
                 try:
                     user = User.objects.create(
-                        email = payload['email'],
-                        username = payload['username'],
-                        password = make_password(payload['password']),
-                        is_verified = payload["is_verified"]
+                        email=payload['email'],
+                        username=payload['username'],
+                        password=make_password(payload['password']),
+                        is_verified=payload["is_verified"]
                     )
                 except Exception as e:
-                    return Response({"message":"Error while creating user"})
+                    return Response({
+                        "error": "User creation failed", 
+                        "details": str(e)
+                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                    
                 user.save()
                 cache.delete(cache_key)
                 return Response({
-                        "success" : True,
-                        "message" : "Account verified successfully",
-                        "data" : payload
-                    },status=200)
-                    
-                     
+                    "success": True,
+                    "message": "Account verified successfully",
+                    "data": {
+                        "email": payload["email"],
+                        "username": payload["username"],
+                        "is_verified": payload["is_verified"]
+                    }
+                }, status=status.HTTP_200_OK)
+            
             return Response({
-                "success" : False,
-                "message" : "Something went wrong",
-                "error" : serializer.errors
-            },status=400)
+                "error": "Validation failed",
+                "details": serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
                 
-                
-
         except Exception as e:
             return Response({
-                "message":"server error 500",
-                "error" : str(e)
-            })
+                "error": "OTP verification failed",
+                "details": str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
