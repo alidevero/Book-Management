@@ -62,7 +62,7 @@ class VerifyOtpSerializer(serializers.Serializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('username','email')
+        fields = ['username','email' ,'profile_photo']
         read_only_fields = ['email']
 
         

@@ -8,6 +8,8 @@ from django.core.cache import cache
 from Auth.authentication import *
 from django.contrib.auth.hashers import make_password
 from rest_framework import status, permissions
+from Books.models import *
+from Social.models import *
 # Create your views here.
 
 class SignupUser(APIView):
@@ -141,8 +143,10 @@ class UserProfileView(APIView):
     def get(self , request):
         try:
             user = request.user
+            user_book = BookModel.objects.filter(uploaded_by= user).all()
+            user_like = LikeModle.objects.filter(user= user).all()
             serializer = UserProfileSerializer(user)
-            return Response({"message":"This is you profile","data":serializer.data},status=status.HTTP_200_OK)          
+            return Response({"message":"This is you profile","data":serializer.data,"books":user_book,"likes":user_like},status=status.HTTP_200_OK)          
         except Exception as e:
             return Response({
                 "error": "Could not get the profile failed",
