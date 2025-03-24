@@ -79,4 +79,21 @@ class DeleteBookView(APIView):
         except Exception as e:
             return Response({"message":"Something went wrong in while deleting","error":str(e)},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-                     
+
+class UpdateBookView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+    def patch(self, request,book_id):
+        try:
+            book = BookModel.objects.filter(id= book_id).first()
+            if not book:
+                return Response({"message":"book not found"},status=status.HTTP_404_NOT_FOUND)
+            serializer = UpdateBookSerializer(instance = book , data = request.data, partial = True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response({"message":"Successfully updated book"},status=status.HTTP_200_OK)
+            return Response({"message":"Something went wrong while updating","error":serializer.errors},)
+            
+        except Exception as e:
+            return Response({"message":"server error","error":str(e)},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
