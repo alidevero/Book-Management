@@ -135,6 +135,7 @@ class UserLogin(APIView):
             })
 
 
+#need to add few other things
 class UserProfileView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [permissions.IsAuthenticated]
@@ -173,10 +174,9 @@ class UserDeleteView(APIView):
 class UserUpdateView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [permissions.IsAuthenticated]
-    def patch(slef , request):
+    def patch(self , request):
         try:
             user = request.user
-
             serializer = UserUpdateSerializer(instance = user ,data= request.data, partial = True)
             if serializer.is_valid():
                 serializer.save()
