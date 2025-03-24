@@ -110,8 +110,7 @@ class VerifyOTP(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class UserLogin(APIView):
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [permissions.IsAuthenticated]
+    
     def post(self , request):
         try:
             data = request.data
@@ -153,5 +152,36 @@ class UserProfileView(APIView):
                 "details": str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
+class UserDeleteView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+    def delete(self , request):
+        try:
+            if not request.user or request.user.is_anonymous:
+                return Response({"message":"user is missing"})
+            user = request.user
+            print(f"this is the user {user}")
+            
+            user.delete()
+            return Response({"message":"successully delete"})
+
+        except Exception as e:
+            return Response({"message":"Something went wrong while deleting","error":str(e)},status=500)
+        
     
 
+class UserUpdateView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+    def patch(slef , request):
+        try:
+            user = request.user
+
+            serializer = UserUpdateSerializer(instance = user ,data= request.data, partial = True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response({"message":"Successfully updated the user"})
+            return Response({"message":"Something went wrong in during updation","error":serializer.errors})
+        except Exception as e:
+            return Response({"message":"Somthing went wrong in server","error":str(e)})
+                

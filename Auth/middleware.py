@@ -29,7 +29,7 @@ class LastLoginMiddleware:
                 email = payload.get('email')
                 print(f"got the email {email}")
                 user = User.objects.filter(email=email).first()
-                
+                print(user, 'user')
                 
                 if user:
                     request.user = user  # Manually set user

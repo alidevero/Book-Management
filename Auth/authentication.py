@@ -19,8 +19,8 @@ class JWTAuthentication(BaseAuthentication):
         try:
             payload = jwt.decode(token, secret_key, algorithms=['HS256'])
             email = payload.get('email')
+            print(email, 'email')
             user = User.objects.filter(email=email).first()
-            
             if not user:
                 raise AuthenticationFailed('User not found')
                 

@@ -65,4 +65,9 @@ class UserProfileSerializer(serializers.ModelSerializer):
         fields = ['username','email' ,'profile_photo']
         read_only_fields = ['email']
 
+class UserUpdateSerializer(serializers.Serializer):
+
+    username = serializers.CharField()
+    
+
         
