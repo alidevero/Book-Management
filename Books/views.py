@@ -73,9 +73,13 @@ class DeleteBookView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     def delete(self , request,book_id):
         try:
+            current_user = request.user
             book = BookModel.objects.filter(id = book_id).first()
-            book.delete()
-            return Response({"message":"Successfully deleted"})
+            book_uploaded_by = book.uploaded_by
+            if current_user == book_uploaded_by:
+                book.delete()
+                return Response({"message":"Successfully deleted"})
+            return Response({"message":"You can not delete other person' book"},status=status.HTTP_401_UNAUTHORIZED)
         except Exception as e:
             return Response({"message":"Something went wrong in while deleting","error":str(e)},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -86,12 +90,16 @@ class UpdateBookView(APIView):
     def patch(self, request,book_id):
         try:
             book = BookModel.objects.filter(id= book_id).first()
+            current_user = request.user
+            book_upload_by = book.uploaded_by
             if not book:
                 return Response({"message":"book not found"},status=status.HTTP_404_NOT_FOUND)
             serializer = UpdateBookSerializer(instance = book , data = request.data, partial = True)
             if serializer.is_valid():
-                serializer.save()
-                return Response({"message":"Successfully updated book"},status=status.HTTP_200_OK)
+                if current_user == book_upload_by:
+                    serializer.save()
+                    return Response({"message":"Successfully updated book"},status=status.HTTP_200_OK)
+                return Response({"message":"You can not update other peron's book"},status=status.HTTP_401_UNAUTHORIZED)
             return Response({"message":"Something went wrong while updating","error":serializer.errors},)
             
         except Exception as e:

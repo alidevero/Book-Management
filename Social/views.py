@@ -58,11 +58,14 @@ class CommentView(APIView):
             user = request.user
             book_id = request.data.get('book_id')
             book = BookModel.objects.filter(id = book_id).first()
+            book_uploaded_by = book.uploaded_by
             comment = request.data.get('comment')
             serialzer = CommentSerializer(data ={'user':user.id,'book':book.id,'comment':comment})
             if serialzer.is_valid():
-                serialzer.save(user = user, book = book)
-                return Response({"message":"commented successfully"},status=status.HTTP_200_OK)
+                if user != book_uploaded_by:
+                    serialzer.save(user = user, book = book)
+                    return Response({"message":"commented successfully"},status=status.HTTP_200_OK)
+                return Response({"message":"You can not comment on you own book"},status=status.HTTP_401_UNAUTHORIZED)
             return Response({"message":"something went wrong","error":serialzer.errors})               
         
         except Exception as e:
@@ -112,9 +115,13 @@ class UpdateCommentVeiw(APIView):
         try:
             comment = CommentModel.objects.filter(comment_id= comment_id).first()
             serializer = CommentSerializer(instance = comment , data = request.data , partial = True)
+            user = request.user
+            commented_by = comment.user
             if serializer.is_valid():
-                serializer.save()
-                return Response({"message":"Sucessfully updated the comment"},status=status.HTTP_200_OK)
+                if user == commented_by:
+                    serializer.save()
+                    return Response({"message":"Sucessfully updated the comment"},status=status.HTTP_200_OK)
+                return Response({"message":"You are not allowed to edit someone else's comment"},status=status.HTTP_401_UNAUTHORIZED)
             return Response({"message":"Something went wrong while updating the comment" ,"error":serializer.errors})
 
         except Exception as e:
