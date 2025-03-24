@@ -9,6 +9,8 @@ from dotenv import load_dotenv
 import os 
 import jwt
 from Auth.models import *
+from rest_framework import status, permissions
+from Auth.authentication import *
 load_dotenv()
 
 class UploadBookView(APIView):
@@ -16,16 +18,11 @@ class UploadBookView(APIView):
     parser_classes = (MultiPartParser, FormParser)
 
     def post(self, request):
+        authentication_classes = [JWTAuthentication]
+        permission_classes = [permissions.IsAuthenticated]
         try:    
-            auth_header = request.headers.get('Authorization')
-            if auth_header and auth_header.startswith('Bearer '):
-                token = auth_header.split(' ')[1]
-                secret_key = os.environ.get('JWT_SECRET_KEY')
-                print("trying")
-                payload = jwt.decode(token, secret_key, algorithms=['HS256'])
-                email = payload.get('email')
-                user = User.objects.filter(email=email).first()
-
+            
+            user = request.user
             serializer = UploadBookSerializer(data=request.data)
             if serializer.is_valid():
                 # Assign the authenticated user to 'uploaded_by'
@@ -70,3 +67,16 @@ class RetriveSingleBookView(APIView):
             
         except Exception as e:
             return Response({"error":str(e)})
+
+class DeleteBookView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+    def delete(self , request,book_id):
+        try:
+            book = BookModel.objects.filter(id = book_id).first()
+            book.delete()
+            return Response({"message":"Successfully deleted"})
+        except Exception as e:
+            return Response({"message":"Something went wrong in while deleting","error":str(e)},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+                     
