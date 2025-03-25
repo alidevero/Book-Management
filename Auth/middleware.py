@@ -12,6 +12,7 @@ load_dotenv()
 
 
 class LastLoginMiddleware:
+    
     def __init__(self, get_response):
         self.get_response = get_response
 
@@ -23,13 +24,9 @@ class LastLoginMiddleware:
             
 
             try:
-                print("trying")
                 payload = jwt.decode(token, secret_key, algorithms=['HS256'])
-                print(f"got the pay load {payload}")
                 email = payload.get('email')
-                print(f"got the email {email}")
                 user = User.objects.filter(email=email).first()
-                print(user, 'user')
                 
                 if user:
                     request.user = user  # Manually set user

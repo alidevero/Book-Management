@@ -45,6 +45,8 @@ INSTALLED_APPS = [
     'Books',
     'Social',
     'Friends',
+    'Notifications',
+    'dotenv',
     'channels'
 ]
 

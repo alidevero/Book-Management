@@ -20,6 +20,21 @@ from .serializers import *
 # Load environment variables
 load_dotenv()
 
+
+
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
+from Notifications.models import Notification
+
+def send_notification(user, message):
+    notification = Notification.objects.create(user=user, message=message)
+    
+    channel_layer = get_channel_layer()
+    async_to_sync(channel_layer.group_send)(
+        f"user_{user.id}",
+        {"type": "send_notification", "message": message}
+    )
+
 class LikeView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [permissions.IsAuthenticated]
@@ -31,6 +46,7 @@ class LikeView(APIView):
             like, created = LikeModel.objects.get_or_create(user=user, book=book)
             
             if created:
+                send_notification(book.user, f"{request.user.email} liked your book '{book.title}'!")
                 return Response(
                     {"details": "Liked successfully"},
                     status=status.HTTP_200_OK
