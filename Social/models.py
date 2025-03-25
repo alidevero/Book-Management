@@ -4,7 +4,7 @@ from Auth.models import User
 
 # Create your models here.
 
-class LikeModle(models.Model):
+class LikeModel(models.Model):
 
     like_id = models.AutoField(primary_key=True)
     user = models.ForeignKey(User,on_delete=models.CASCADE)

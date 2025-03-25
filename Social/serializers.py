@@ -5,7 +5,7 @@ from .models import *
 class LikeSerializer(serializers.ModelSerializer):
 
     class Meta:
-        model = LikeModle
+        model = LikeModel
         fields =['like_id' , 'user' , 'book' , 'liked_at']
         read_only_fields = ['user']
 
