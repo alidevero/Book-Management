@@ -1,120 +1,292 @@
-from django.shortcuts import get_object_or_404, render
-from Auth.models import *
-from .serializers import *
-from rest_framework.views import APIView
-from rest_framework.response import Response
+# System imports
 import jwt
 import os
+
+# Third-party imports
 from dotenv import load_dotenv
+
+# Django imports
+from django.shortcuts import get_object_or_404, render
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import permissions, status
+
+# Project imports
+from Auth.models import *
+from Auth.authentication import *
+from .models import BookModel, LikeModel, CommentModel
+from .serializers import *
+
+# Load environment variables
 load_dotenv()
 
-# Create your views here.
+
+
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
+from Notifications.models import NotificationModel
+
+def send_notification(user, message):
+    notification = NotificationModel.objects.create(user=user, message=message)
+    
+    channel_layer = get_channel_layer()
+    async_to_sync(channel_layer.group_send)(
+        f"user_{user.id}",
+        {"type": "send_notification", "message": message}
+    )
 
 class LikeView(APIView):
-    def post(self , request , book_id):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request, book_id):
         try:
-            auth_header = request.headers.get('Authorization')
-            if auth_header and auth_header.startswith('Bearer '):
-                token = auth_header.split(' ')[1]
-                secret_key = os.environ.get('JWT_SECRET_KEY')
-                payload = jwt.decode(token , secret_key , algorithms=['HS256'])
-                email = payload.get('email')
-                user = User.objects.filter(email=email).first()
-            book = get_object_or_404(BookModel , id=book_id)
-            like , created = LikeModle.objects.get_or_create(user = user ,book = book)
-
-            if  created:
-                return Response("Like successfully")
-            return Response("Already Liked ")
+            user = request.user
+            book = get_object_or_404(BookModel, id=book_id)
+            like, created = LikeModel.objects.get_or_create(user=user, book=book)
+            
+            if created:
+                send_notification(book.user, f"{request.user.email} liked your book '{book.title}'!")
+                return Response(
+                    {"details": "Liked successfully"},
+                    status=status.HTTP_200_OK
+                )
+            
+            return Response(
+                {"details": "Already liked"},
+                status=status.HTTP_200_OK
+            )
         
         except Exception as e:
+            print("Error: ", e)
+            return Response(
+                {"details": "Something went wrong"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
-            return Response({'message':str(e),})
+class UnlikeView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def delete(self, request, book_id):
+        try:
+            user = request.user
+            user_id = user.id
+            like = LikeModel.objects.filter(user=user_id, book=book_id).first()
+            
+            if like:
+                like.delete()
+                return Response(
+                    {"details": "Unliked"},
+                    status=status.HTTP_200_OK
+                )
+            
+            return Response(
+                {"details": "Like not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
         
-
+        except Exception as e:
+            print("Error: ", e)
+            return Response(
+                {"details": "Server error"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 class GetAllLikeView(APIView):
-    def get(self, request,book_id):
+
+    def get(self, request, book_id):
         try:
-            likes_of_book = LikeModle.objects.filter(book=book_id ).all()
-            serializer = GetAllLikes(likes_of_book,many=True)
-            return Response(serializer.data)
-        except Exception as e :
-            return Response({"error" : str(e)})
-
-#need modification for better error handling 
-class CommentView(APIView):
-
-    def post(self,request):
-        try:
-            auth_header = request.headers.get('Authorization')
-            if auth_header and auth_header.startswith('Bearer '):
-                token = auth_header.split(' ')[1]
-                secret_key = os.environ.get('JWT_SECRET_KEY')
-                payload = jwt.decode(token , secret_key , algorithms=['HS256'])
-                email = payload.get('email')
-                user = User.objects.filter(email=email).first()
-                
-                print(f"got the user {user}")
-                if not user:
-                    return Response({"message":"User not found"})
-                book_id = request.data.get('book_id')
-                book = BookModel.objects.filter(id = book_id).first()
-
-                print(f"got the book_id {book_id}")
-                comment = request.data.get('comment')
-                print(f"got the comment {comment}")
-                serialzer = CommentSerializer(data ={'user':user.id,'book':book.id,'comment':comment})
-                if serialzer.is_valid():
-                    serialzer.save(user = user, book = book)
-                    return Response({"message":"commented successfully"})
-                return Response({"message":"something went wrong","error":serialzer.errors})
-            return Response({"message":"Token was empty or expired"})
-                
+            likes_of_book = LikeModel.objects.filter(book=book_id).all()
+            serializer = GetAllLikes(likes_of_book, many=True)
+            
+            return Response(
+                {"details": serializer.data},
+                status=status.HTTP_200_OK
+            )
         
         except Exception as e:
-            return Response({"message":str(e)})
+            print("Error: ", e)
+            return Response(
+                {"details": "Something went wrong"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+class CommentView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        try:
+            user = request.user
+            book_id = request.data.get('book_id')
+            book = BookModel.objects.filter(id=book_id).first()
+            
+            if not book:
+                return Response(
+                    {"details": "Book not found"},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            book_uploaded_by = book.uploaded_by
+            comment = request.data.get('comment')
+            serializer = CommentSerializer(data={'user': user.id, 'book': book.id, 'comment': comment})
+            
+            if serializer.is_valid():
+                if user != book_uploaded_by:
+                    serializer.save(user=user, book=book)
+                    return Response(
+                        {"details": "Commented successfully"},
+                        status=status.HTTP_200_OK
+                    )
+                
+                return Response(
+                    {"details": "You cannot comment on your own book"},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+            
+            return Response(
+                {"details": serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         
-    
+        except Exception as e:
+            print("Error: ", e)
+            return Response(
+                {"details": "Something went wrong"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
 class GetAllComments(APIView):
 
-    def get(self ,request, book_id):
+    def get(self, request, book_id):
         try:            
-            book_comments = CommentModel.objects.filter(book = book_id).all()
-            print(f"got all comments {book_comments}")
-            serializer = GetAllCommentSerializer(book_comments , many = True)
-                        
-            return Response(serializer.data)
-                    
+            book_comments = CommentModel.objects.filter(book=book_id).all()
+            serializer = GetAllCommentSerializer(book_comments, many=True)
+            
+            return Response(
+                {"details": serializer.data},
+                status=status.HTTP_200_OK
+            )
+        
         except Exception as e:
-            return Response({"erro":str(e)})
-
-
+            print("Error: ", e)
+            return Response(
+                {"details": "Something went wrong"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 class ReplyToCommentView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
 
-    def post(self,request):
+    def post(self, request):
         try:
-            auth_header = request.headers.get('Authorization')
-            if auth_header and auth_header.startswith('Bearer '):
-                token = auth_header.split(' ')[1]
-                secret_key = os.environ.get('JWT_SECRET_KEY')
-                payload = jwt.decode(token , secret_key , algorithms=['HS256'])
-                email = payload.get('email')
-                user = User.objects.filter(email=email).first()
-                book_id = request.data.get('book_id')
-                comment = request.data.get('comment')
-                parent = request.data.get('parent')
-                book= BookModel.objects.filter(id= book_id).first()
-                parent = CommentModel.objects.filter(comment_id= parent).first()
-                serializer = ReplyToCommentSerializer(data = {"user":user.id,"book":book.id,"parent":parent.comment_id,"comment":comment})
-                if serializer.is_valid():
-                    serializer.save(user=user, book=book,comment=comment)
-                    return Response({"message":"Replied Successfully","data":serializer.data})
-                return Response({"error":serializer.errors})
+            user = request.user
+            book_id = request.data.get('book_id')
+            comment = request.data.get('comment')
+            parent = request.data.get('parent')
             
-            return Response({"message":"Invalid or expired jwt"})
+            book = BookModel.objects.filter(id=book_id).first()
+            parent_comment = CommentModel.objects.filter(comment_id=parent).first()
             
-
+            serializer = ReplyToCommentSerializer(data={
+                "user": user.id, 
+                "book": book.id, 
+                "parent": parent_comment.comment_id, 
+                "comment": comment
+            })
+            
+            if serializer.is_valid():
+                serializer.save(user=user, book=book, comment=comment)
+                return Response(
+                    {
+                        "details": {
+                            "message": "Replied Successfully",
+                            "data": serializer.data
+                        }
+                    },
+                    status=status.HTTP_200_OK
+                )
+            
+            return Response(
+                {"details": serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
         except Exception as e:
-            return Response({"message":str(e)})
+            print("Error: ", e)
+            return Response(
+                {"details": "Something went wrong"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+class UpdateCommentView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def patch(self, request, comment_id):
+        try:
+            comment = CommentModel.objects.filter(comment_id=comment_id).first()
+            
+            if not comment:
+                return Response(
+                    {"details": "Comment not found"},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            serializer = CommentSerializer(instance=comment, data=request.data, partial=True)
+            user = request.user
+            commented_by = comment.user
+            
+            if serializer.is_valid():
+                if user == commented_by:
+                    serializer.save()
+                    return Response(
+                        {"details": "Successfully updated the comment"},
+                        status=status.HTTP_200_OK
+                    )
+                
+                return Response(
+                    {"details": "You are not allowed to edit someone else's comment"},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+            
+            return Response(
+                {"details": serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        except Exception as e:
+            print("Error: ", e)
+            return Response(
+                {"details": "Something went wrong"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+class DeleteCommentView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def delete(self, request, comment_id):
+        try:
+            comment = CommentModel.objects.filter(comment_id=comment_id).first()
+            
+            if not comment:
+                return Response(
+                    {"details": "Comment not found"},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            comment.delete()
+            return Response(
+                {"details": "Deleted comment successfully"},
+                status=status.HTTP_200_OK
+            )
+        
+        except Exception as e:
+            print("Error: ", e)
+            return Response(
+                {"details": "Something went wrong"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

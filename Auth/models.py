@@ -15,7 +15,7 @@ class User(AbstractBaseUser , PermissionsMixin):
     id = models.AutoField(primary_key=True)
     username = models.CharField(max_length=100 , unique=True )
     email = models.EmailField(unique=True)
-    profile_photo = models.ImageField()
+    profile_photo = models.ImageField(upload_to="profile_photos/")
     is_verified = models.BooleanField(default=False)
     last_login = models.DateTimeField(null=True , blank=True)
     is_superuser = models.BooleanField(default=False)

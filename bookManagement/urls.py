@@ -22,8 +22,8 @@ from django.conf import settings
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/v0/Auth/', include('Auth.urls')),
+    path('api/v0/auth/', include('Auth.urls')),
     path('api/v0/books/', include('Books.urls')),
-    path('api/v0/Social/', include('Social.urls')),
-    path('api/v0/Friends/', include('Friends.urls')),
+    path('api/v0/social/', include('Social.urls')),
+    path('api/v0/friends/', include('Friends.urls')),
 ]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -54,10 +54,23 @@ class UserLoginSerializer(serializers.Serializer):
         return data
 
 
-
-
 class VerifyOtpSerializer(serializers.Serializer):
     email = serializers.EmailField()
     otp = serializers.IntegerField()
+
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['username','email' ,'profile_photo']
+        read_only_fields = ['email']
+
+class UserUpdateSerializer(serializers.ModelSerializer):
+    profile_photo= serializers.ImageField(required = False)
+
+    class Meta:
+        model=User
+        fields = ['username','profile_photo']
+    
 
         

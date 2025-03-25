@@ -67,6 +67,10 @@ class ViewSingleBookSerializer(serializers.Serializer):
         }
 
 
-    
+class UpdateBookSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model=BookModel
+        fields = ['title','author','description','pdf_content' ]    
 
     

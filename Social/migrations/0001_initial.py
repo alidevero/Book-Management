@@ -25,7 +25,7 @@ class Migration(migrations.Migration):
             ],
         ),
         migrations.CreateModel(
-            name='LikeModle',
+            name='LikeModel',
             fields=[
                 ('like_id', models.AutoField(primary_key=True, serialize=False)),
                 ('liked_at', models.DateTimeField(auto_now_add=True)),
