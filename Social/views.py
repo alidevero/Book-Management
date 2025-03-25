@@ -24,10 +24,10 @@ load_dotenv()
 
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
-from Notifications.models import Notification
+from Notifications.models import NotificationModel
 
 def send_notification(user, message):
-    notification = Notification.objects.create(user=user, message=message)
+    notification = NotificationModel.objects.create(user=user, message=message)
     
     channel_layer = get_channel_layer()
     async_to_sync(channel_layer.group_send)(
