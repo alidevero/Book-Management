@@ -81,7 +81,7 @@ TEMPLATES = [
 
 # WSGI_APPLICATION = 'bookManagement.wsgi.application'
 
-ASGI_APPLICATION = 'bookManagement.asgi.application'
+ASGI_APPLICATION = "bookManagement.asgi.application"
 WEBHOOK_URL = "https://your-external-service.com/webhook"
 
 
